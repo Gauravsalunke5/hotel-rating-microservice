@@ -4,6 +4,8 @@ package com.gaurav.user.service.controllers;
 import com.gaurav.user.service.entities.User;
 import com.gaurav.user.service.services.UserService;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
+import io.github.resilience4j.ratelimiter.annotation.RateLimiter;
+import io.github.resilience4j.retry.annotation.Retry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -30,10 +32,16 @@ public class UserController {
     }
 
     //single user get
+    int retryCount = 1;
+
     @GetMapping("/{userId}")
-    @CircuitBreaker(name = "ratingHotelBreaker", fallbackMethod = "ratingHotelFallback")
+    // @CircuitBreaker(name = "ratingHotelBreaker", fallbackMethod = "ratingHotelFallback")
+   // @Retry(name = "ratingHotelService", fallbackMethod = "ratingHotelFallback")
+    @RateLimiter(name = "userRateLimiter", fallbackMethod = "ratingHotelFallback")
     public ResponseEntity<User> getSingleUser(@PathVariable String userId) {
         logger.info("Get Single User Handler: UserController");
+        logger.info("Retry count: {}", retryCount);
+        retryCount++;
 
         User user = userService.getUser(userId);
         return ResponseEntity.ok(user);
@@ -41,7 +49,7 @@ public class UserController {
 
     public ResponseEntity<User> ratingHotelFallback(String userId, Exception ex) {
         logger.info("Fallback is executed because service is down : ", ex.getMessage());
-        ex.printStackTrace();
+        //ex.printStackTrace();
 
         User user = User.builder()
                 .email("dummy@gmail.com")
